@@ -1,0 +1,5 @@
+ANTHROPIC_API_KEY=YOUR_EXISTING_ANTHROPIC_API_KEY
+WORKER_SHARED_SECRET=YOUR_RANDOM_SHARED_SECRET
+# Optional: preserve your existing AI Gateway. Omit both to use Anthropic directly.
+# CF_ACCOUNT_ID=
+# GATEWAY_ID=

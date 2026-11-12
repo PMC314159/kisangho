@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#f5f3ed">
+  <meta name="description" content="기상호와 예지 누나, 오늘도 이어지는 이야기. 비공식 팬 창작 채팅.">
+  <title>상호에게 · 오늘도 이어지는 이야기</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="wordmark" href="/" aria-label="상호에게 홈">TO. SANGHO<span>오늘도 이어지는 이야기</span></a>
+      <div class="profile-card">
+        <div class="portrait" aria-hidden="true"><span>상호</span><i></i></div>
+        <p class="eyebrow">JISANG BASKETBALL CLUB</p>
+        <h1>기상호<span>SANGHO</span></h1>
+        <p class="profile-sub">지상고 1학년 · 187cm</p>
+        <div class="profile-line"></div>
+        <p class="profile-note">멀리 있어도,<br>하던 이야기는 계속.</p>
+      </div>
+      <div class="connection-note">
+        <span class="small-label">OUR STORY</span>
+        <p>옆집에 살던 누나와 동생.<br>지금은 서울과 지상고 사이.</p>
+        <p class="muted">이 링크의 대화와 기억은 하나로 이어져요.</p>
+      </div>
+      <p class="fan-notice">가비지타임 비공식 팬 창작<br>AI의 답변에는 창작과 오류가 포함될 수 있어요.</p>
+    </aside>
+
+    <main class="chat-panel">
+      <header class="chat-header">
+        <div class="contact"><div class="mini-avatar" aria-hidden="true">상</div><div><h2>기상호</h2><p id="connection-status" role="status">대화 기록을 확인하고 있어요</p></div></div>
+        <div class="header-actions"><button id="refresh" type="button" title="대화 새로 불러오기" aria-label="대화 새로 불러오기">↻</button><button id="export" type="button">기록 보관</button></div>
+      </header>
+
+      <div class="story-strip"><span>예지 누나에게</span><span id="memory-status">같은 링크, 같은 기억</span></div>
+      <section class="conversation" id="conversation" aria-label="기상호와의 대화">
+        <button class="load-older" id="load-older" type="button" hidden>이전 대화 불러오기</button>
+        <div class="welcome" id="welcome" hidden>
+          <div class="court-mark" aria-hidden="true"><span></span></div>
+          <p class="eyebrow">SOMEWHERE BETWEEN US</p>
+          <h3>누나, 왔어요?</h3>
+          <p>아주 익숙한 이름에게,<br>오늘의 이야기를 건네 보세요.</p>
+          <div class="suggestions"><button type="button" data-message="상호야, 오늘 연습 어땠어?">오늘 연습 어땠어?</button><button type="button" data-message="상호야, 누나 왔다.">누나 왔다.</button></div>
+        </div>
+        <div id="messages" role="log" aria-label="저장된 대화"></div>
+        <div class="typing" id="typing" hidden><span></span><span></span><span></span><p>상호가 답장을 쓰고 있어요</p></div>
+      </section>
+
+      <div class="composer-area">
+        <div id="notice" class="notice" role="status" hidden></div>
+        <div class="composer-toolbar"><div class="mode-switch" role="group" aria-label="대화 형식"><button type="button" data-mode="chat" aria-pressed="true">문자</button><button type="button" data-mode="scene" aria-pressed="false">장면</button></div><span id="mode-hint">짧게 주고받는 일상</span></div>
+        <form id="chat-form" class="composer">
+          <label class="sr-only" for="message">상호에게 보낼 메시지</label>
+          <textarea id="message" rows="1" maxlength="4000" placeholder="상호에게 이야기하기…" required></textarea>
+          <button id="send" type="submit" aria-label="메시지 보내기"><span aria-hidden="true">↑</span></button>
+        </form>
+        <div class="composer-footer"><span>대화는 서버에 저장돼요 · 기기를 바꿔도 이어져요</span><span id="char-count">0 / 4000</span></div>
+      </div>
+    </main>
+  </div>
+  <div id="announcement" class="sr-only" aria-live="polite"></div>
+</body>
+</html>

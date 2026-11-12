@@ -1,0 +1,20 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "kisangho-chat",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-12",
+  "workers_dev": true,
+  "vars": {
+    "ANTHROPIC_MODEL": "claude-opus-4-6",
+    "MEMORY_MODEL": "claude-opus-4-6",
+    "DAILY_MESSAGE_LIMIT": "200"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kisangho-memory",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
