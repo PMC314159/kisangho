@@ -147,9 +147,14 @@ test('invalid input and truncated model output do not change history', async () 
   assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 0);
 });
 
-test('character prompt preserves user canon, age-appropriate affection and Korean time', () => {
+test('character prompt preserves the adult academy setting, gradual speech and Korean time', () => {
   const prompt = systemPrompt('chat', '예지는 복숭아를 좋아한다.', Date.UTC(2026, 10, 12, 15, 30));
-  assert.match(prompt, /16세/); assert.match(prompt, /20세/);
+  assert.match(prompt, /23세/); assert.match(prompt, /26세/);
+  assert.match(prompt, /20~21세에 군 복무/); assert.match(prompt, /22세에 준향대학교 2학년으로 복학/);
+  assert.match(prompt, /고양 농구팀/); assert.match(prompt, /성인 영어학원/);
+  assert.match(prompt, /첫 호칭은 '예지님'/); assert.match(prompt, /반존대/);
+  assert.match(prompt, /정해진 메시지 수나 접속 횟수로 친밀도를 올리지 않는다/);
+  assert.match(systemPrompt('chat', ''), /첫 단계로 시작/);
   assert.match(prompt, /예지 누나/); assert.match(prompt, /경상도 사투리/);
   assert.match(prompt, /11월 13일/); assert.match(prompt, /예지는 복숭아를 좋아한다/);
 });

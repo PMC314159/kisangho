@@ -1,5 +1,5 @@
 const $ = selector => document.querySelector(selector);
-const ui = { form: $('#chat-form'), input: $('#message'), send: $('#send'), messages: $('#messages'), conversation: $('#conversation'), welcome: $('#welcome'), typing: $('#typing'), notice: $('#notice'), older: $('#load-older'), status: $('#connection-status'), memory: $('#memory-status') };
+const ui = { form: $('#chat-form'), input: $('#message'), send: $('#send'), messages: $('#messages'), conversation: $('#conversation'), typing: $('#typing'), notice: $('#notice'), older: $('#load-older'), status: $('#connection-status') };
 const history = new Map();
 let mode = 'chat', busy = false, syncing = false, initial = true;
 let retry = null;
@@ -38,7 +38,7 @@ function setBusy(value) {
   ui.send.disabled = value;
   ui.typing.hidden = !value;
   ui.form.setAttribute('aria-busy', String(value));
-  document.querySelectorAll('[data-mode], [data-message]').forEach(button => { button.disabled = value; });
+  document.querySelectorAll('[data-mode]').forEach(button => { button.disabled = value; });
 }
 async function api(action, options = {}) {
   const response = await fetch(`/api/${action}`, { ...options, cache: 'no-store', signal: AbortSignal.timeout(115000) });
@@ -66,7 +66,6 @@ function render() {
     row.append(bubble, time); article.append(author, row); fragment.append(article);
   }
   ui.messages.replaceChildren(fragment);
-  ui.welcome.hidden = history.size > 0;
 }
 function bottom() { ui.conversation.scrollTop = ui.conversation.scrollHeight; }
 async function refresh() {
@@ -81,12 +80,10 @@ async function refresh() {
     render();
     if (initial || atBottom) bottom();
     initial = false;
-    ui.status.textContent = status.ready ? '이전 이야기를 이어갈 준비가 됐어요' : '대화 저장소 연결됨 · AI 키 설정 필요';
-    ui.memory.textContent = status.messageCount ? `${status.messageCount.toLocaleString()}개의 메시지 · 계속 이어지는 기억` : '같은 링크, 같은 기억';
+    ui.status.textContent = status.ready ? '연결됨' : 'AI 키 설정 필요';
     if (!busy) notice(status.ready ? '' : 'Cloudflare Worker에 기존 ANTHROPIC_API_KEY를 설정하면 대화를 시작할 수 있어요.');
   } catch (error) {
     ui.status.textContent = '서버 연결을 확인해 주세요';
-    ui.welcome.hidden = history.size > 0;
     notice(error.message);
   } finally { syncing = false; $('#refresh').disabled = false; }
 }
@@ -114,18 +111,17 @@ ui.form.addEventListener('submit', async event => {
   if (retry?.message !== message || retry?.mode !== mode || !retry?.requestId) retry = { requestId: crypto.randomUUID(), message, mode };
   ui.input.value = message;
   saveDraft();
-  setBusy(true); notice(); ui.welcome.hidden = true; bottom();
+  setBusy(true); notice(); bottom();
   try {
     const result = await api('chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(retry) });
     for (const item of result.messages) history.set(item.id, item);
     render();
     ui.input.value = ''; retry = null; saveDraft(); resize();
-    ui.status.textContent = '방금 대화를 저장했어요';
+    ui.status.textContent = '저장됨';
     $('#announcement').textContent = '상호의 답장이 도착했고 대화가 저장됐어요.';
     notice(result.warning || '');
   } catch (error) {
     notice(error.name === 'TimeoutError' ? '답장을 기다리다 연결이 끊겼어요. 새로고침으로 저장 여부를 확인하거나 같은 메시지를 다시 보내 주세요.' : error.message);
-    ui.welcome.hidden = history.size > 0;
   } finally { setBusy(false); bottom(); ui.input.focus(); }
 });
 
@@ -136,7 +132,6 @@ ui.input.addEventListener('keydown', event => {
   }
 });
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
-document.querySelectorAll('[data-message]').forEach(button => button.addEventListener('click', () => { ui.input.value = button.dataset.message; resize(); saveDraft(); ui.input.focus(); }));
 $('#refresh').addEventListener('click', refresh);
 $('#export').addEventListener('click', async () => {
   $('#export').disabled = true;
