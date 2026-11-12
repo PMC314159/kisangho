@@ -1,6 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "kisangho-chat",
+  "account_id": "7441b73749dd1f5112c9a80d17e6cb6c",
   "main": "src/index.js",
   "compatibility_date": "2026-11-12",
   "workers_dev": true,
@@ -13,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "kisangho-memory",
-      "database_id": "00c4213a-97ff-4ce3-9ab1-d8ea8b28fff7",
+      "database_id": "31ba5f1b-be33-4b4d-b77f-e04869627e79",
       "migrations_dir": "migrations"
     }
   ]

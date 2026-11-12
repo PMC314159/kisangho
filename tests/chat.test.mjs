@@ -69,6 +69,19 @@ test('retrying the same request ID returns the stored pair without another API c
   await assert.rejects(chat(request('다른 내용', id), env), { status: 409 });
 });
 
+test('migration Secret binding is used consistently for readiness and API authentication', async () => {
+  const env = setup();
+  delete env.ANTHROPIC_API_KEY;
+  env.Secret = 'migration-test-key';
+  const status = await (await worker.fetch(fetchRequest('status'), env)).json();
+  assert.equal(status.ready, true);
+  await chat(request('안녕하세요.'), env, async (_url, options) => {
+    assert.equal(options.headers['x-api-key'], 'migration-test-key');
+    return response('안녕하세요.');
+  });
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 2);
+});
+
 test('upstream failure saves no partial pair and releases the shared lease', async () => {
   const env = setup(), id = crypto.randomUUID();
   await assert.rejects(chat(request('안녕', id), env, async () => new Response('secret error body', { status: 500 })), { status: 502 });

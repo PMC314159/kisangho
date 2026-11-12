@@ -4,6 +4,10 @@ GitHub + Vercel 채팅 화면과 Cloudflare Worker + D1 기억 서버입니다. 
 
 운영 사이트: https://sangho-yeji.vercel.app
 
+운영 Worker: https://kisangho-chat.kisangho.workers.dev (새 Cloudflare 계정)
+
+현재 계정에 등록된 API 키는 `Secret`이라는 Secret 이름으로 저장되어 있어 서버가 이 이름도 지원합니다. `ANTHROPIC_API_KEY`가 있으면 해당 값을 우선 사용합니다. 키 값은 코드나 저장소에 포함하지 않습니다.
+
 현재 설정: 예지 26세, 상호 23세. 준향대 휴학 중인 고양 농구팀 선수 상호가 일산 성인 영어학원에 새로 등록해 예지를 처음 만납니다. 처음에는 예지님과 존댓말, 친밀해지면 예지 누나·누님과 반존대, 이후 누나·예지 누나와 반존대로 자연스럽게 발전합니다. 관계와 호칭의 변화도 장기기억에 보존합니다.
 
 ## 동작
@@ -39,7 +43,7 @@ Node.js 22 이상과 npm이 필요합니다. 테스트는 `node:sqlite`가 있�
 npm install
 npm run check
 npm test
-npx wrangler login
+npm run cf -- login
 ```
 
 ## 2. Cloudflare D1 만들기
@@ -47,7 +51,7 @@ npx wrangler login
 이 저장소에는 현재 계정에 생성한 `kisangho-memory` DB ID가 연결되어 있습니다. **같은 계정에서 이어서 배포할 때는 DB를 다시 만들지 않고** `npm run db:remote`부터 실행합니다. 아래 생성 명령은 다른 계정으로 새로 설치할 때만 사용합니다.
 
 ```powershell
-npx wrangler d1 create kisangho-memory
+npm run cf -- d1 create kisangho-memory
 ```
 
 출력된 `database_id`를 `worker/wrangler.jsonc`의 `REPLACE_WITH_YOUR_D1_DATABASE_ID` 자리에 넣습니다. D1 바인딩 이름은 `DB`입니다.
@@ -63,11 +67,13 @@ npm run db:remote
 기존 Anthropic 키는 다음 명령의 입력창에 붙여 넣습니다. 코드·GitHub·메신저에 넣지 않습니다.
 
 ```powershell
-npx wrangler secret put ANTHROPIC_API_KEY --config worker/wrangler.jsonc
-npx wrangler secret put WORKER_SHARED_SECRET --config worker/wrangler.jsonc
+npm run cf -- secret put ANTHROPIC_API_KEY --config worker/wrangler.jsonc
+npm run cf -- secret put WORKER_SHARED_SECRET --config worker/wrangler.jsonc
 ```
 
 `WORKER_SHARED_SECRET`은 새 무작위 비밀값으로 정하고, 잠시 후 Vercel에도 **똑같은 값**을 넣습니다. API 키와 다른 값입니다. 예를 들어 비밀번호 관리자로 40자 이상의 무작위 문자열을 만들면 됩니다.
+
+이 컴퓨터에서는 기존 계정과 새 계정의 CLI 인증을 분리해 두었습니다. `npm run cf` 및 배포·DB 명령은 Git에서 제외한 `.env.cloudflare.local`을 통해 새 계정의 인증 폴더를 선택합니다. 다른 컴퓨터에는 이 파일을 복사할 필요 없이 새 계정으로 로그인하면 됩니다.
 
 모델은 기존 코드와 같은 `claude-opus-4-6`으로 설정했습니다. 실제 API 계정의 사용 가능 모델에 맞춰 `worker/wrangler.jsonc`의 `ANTHROPIC_MODEL`, `MEMORY_MODEL`을 변경할 수 있습니다. 기억 정리에도 별도 API 비용이 발생합니다.
 

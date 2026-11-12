@@ -1,6 +1,9 @@
 import { systemPrompt, MEMORY_PROMPT } from './character.js';
 
 const ID = 'yeji-sangho';
+// The migration account stored its encrypted API key under the name "Secret".
+// Read that binding directly; never retrieve or copy its value into source files.
+const apiKey = env => env.ANTHROPIC_API_KEY || env.Secret;
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
 });
@@ -16,7 +19,7 @@ export async function callClaude(env, messages, system, maxTokens, fetcher = fet
     : 'https://api.anthropic.com/v1/messages';
   const response = await fetcher(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey(env), 'anthropic-version': '2023-06-01' },
     signal: AbortSignal.timeout(memory ? 35000 : 65000),
     body: JSON.stringify({
       model: (memory && env.MEMORY_MODEL) || env.ANTHROPIC_MODEL || 'claude-opus-4-6',
@@ -80,7 +83,7 @@ export async function chat(request, env, fetcher = fetch) {
   };
   const prior = await completed();
   if (prior) return prior;
-  if (!env.ANTHROPIC_API_KEY) throw new PublicError('Cloudflare에 ANTHROPIC_API_KEY를 설정해 주세요.', 503);
+  if (!apiKey(env)) throw new PublicError('Cloudflare에 ANTHROPIC_API_KEY를 설정해 주세요.', 503);
   // Atomic lease across Worker instances; two devices cannot overwrite each other.
   const owner = crypto.randomUUID();
   const now = Date.now();
@@ -124,7 +127,7 @@ export default {
       if (url.pathname === '/api/status' && request.method === 'GET') {
         const state = await env.DB.prepare('SELECT memory_through FROM conversation WHERE id = ?').bind(ID).first();
         const count = await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first();
-        return json({ ready: Boolean(env.ANTHROPIC_API_KEY), messageCount: count.count, memoryThrough: state.memory_through });
+        return json({ ready: Boolean(apiKey(env)), messageCount: count.count, memoryThrough: state.memory_through });
       }
       if (url.pathname === '/api/history' && request.method === 'GET') {
         const beforeRaw = url.searchParams.get('before');

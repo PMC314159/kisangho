@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
-    "worker:dev": "wrangler dev --config worker/wrangler.jsonc",
-    "worker:deploy": "wrangler deploy --config worker/wrangler.jsonc",
-    "db:local": "wrangler d1 migrations apply DB --local --config worker/wrangler.jsonc",
-    "db:remote": "wrangler d1 migrations apply DB --remote --config worker/wrangler.jsonc",
+    "cf": "node --env-file-if-exists=.env.cloudflare.local node_modules/wrangler/bin/wrangler.js",
+    "worker:dev": "node --env-file-if-exists=.env.cloudflare.local node_modules/wrangler/bin/wrangler.js dev --config worker/wrangler.jsonc",
+    "worker:deploy": "node --env-file-if-exists=.env.cloudflare.local node_modules/wrangler/bin/wrangler.js deploy --config worker/wrangler.jsonc",
+    "db:local": "node --env-file-if-exists=.env.cloudflare.local node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --local --config worker/wrangler.jsonc",
+    "db:remote": "node --env-file-if-exists=.env.cloudflare.local node_modules/wrangler/bin/wrangler.js d1 migrations apply DB --remote --config worker/wrangler.jsonc",
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check.mjs"
   },
