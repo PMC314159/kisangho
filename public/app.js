@@ -3,6 +3,7 @@ const ui = { form: $('#chat-form'), input: $('#message'), send: $('#send'), mess
 const history = new Map();
 let mode = 'chat', busy = false, syncing = false, initial = true;
 let retry = null;
+let historyEpoch = 0, resetToken = null, resetting = false;
 try {
   const saved = JSON.parse(localStorage.getItem('sangho-draft') || 'null');
   if (saved && typeof saved.message === 'string') {
@@ -36,6 +37,7 @@ function setBusy(value) {
   busy = value;
   ui.input.disabled = value;
   ui.send.disabled = value;
+  $('#reset').disabled = value;
   ui.typing.hidden = !value;
   ui.form.setAttribute('aria-busy', String(value));
   document.querySelectorAll('[data-mode]').forEach(button => { button.disabled = value; });
@@ -73,8 +75,16 @@ async function refresh() {
   syncing = true;
   $('#refresh').disabled = true;
   const atBottom = ui.conversation.scrollHeight - ui.conversation.scrollTop - ui.conversation.clientHeight < 100;
+  const epoch = historyEpoch;
   try {
     const data = await api('history');
+    if (epoch !== historyEpoch) return;
+    if (resetToken !== null && resetToken !== data.resetToken) {
+      history.clear();
+      initial = true;
+      historyEpoch++;
+    }
+    resetToken = data.resetToken;
     for (const message of data.messages) history.set(message.id, message);
     if (initial) ui.older.hidden = !data.hasMore;
     render();
@@ -91,8 +101,11 @@ ui.older.addEventListener('click', async () => {
   ui.older.disabled = true;
   const previousHeight = ui.conversation.scrollHeight;
   const previousTop = ui.conversation.scrollTop;
+  const epoch = historyEpoch;
   try {
     const data = await api(`history?before=${earliest}`);
+    if (epoch !== historyEpoch) return;
+    if (resetToken !== data.resetToken) { await refresh(); return; }
     for (const message of data.messages) history.set(message.id, message);
     render();
     ui.older.hidden = !data.hasMore;
@@ -129,6 +142,45 @@ ui.input.addEventListener('keydown', event => {
 });
 document.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
 $('#refresh').addEventListener('click', refresh);
+$('#reset').addEventListener('click', () => {
+  if (busy) return;
+  $('#reset-error').hidden = true;
+  $('#reset-dialog').showModal();
+});
+$('#reset-cancel').addEventListener('click', () => $('#reset-dialog').close());
+$('#reset-dialog').addEventListener('cancel', event => { if (resetting) event.preventDefault(); });
+$('#reset-confirm').addEventListener('click', async () => {
+  if (busy || resetting) return;
+  resetting = true;
+  historyEpoch++;
+  setBusy(true);
+  ui.typing.hidden = true;
+  $('#reset-confirm').disabled = true;
+  $('#reset-cancel').disabled = true;
+  $('#reset-error').hidden = true;
+  try {
+    const result = await api('reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: 'RESET_ALL' }) });
+    resetToken = result.resetToken;
+    history.clear();
+    retry = null;
+    ui.input.value = '';
+    saveDraft(); resize(); render();
+    ui.older.hidden = true;
+    initial = false;
+    $('#reset-dialog').close();
+    notice('대화와 기억을 초기화했어요. 첫 만남부터 다시 시작해요.');
+    $('#announcement').textContent = '대화와 기억을 모두 초기화했어요.';
+  } catch (error) {
+    $('#reset-error').textContent = error.message;
+    $('#reset-error').hidden = false;
+  } finally {
+    resetting = false;
+    setBusy(false);
+    $('#reset-confirm').disabled = false;
+    $('#reset-cancel').disabled = false;
+    if (!$('#reset-dialog').open) ui.input.focus();
+  }
+});
 $('#export').addEventListener('click', async () => {
   $('#export').disabled = true;
   try {

@@ -124,6 +124,27 @@ export default {
     if (!env.DB) return json({ error: 'Cloudflare D1 DB 연결이 필요해요.' }, 503);
     try {
       if (url.pathname === '/api/chat' && request.method === 'POST') return await chat(request, env);
+      if (url.pathname === '/api/reset' && request.method === 'POST') {
+        let body;
+        try { body = await request.json(); } catch { throw new PublicError('초기화 확인이 필요해요.'); }
+        if (body?.confirm !== 'RESET_ALL') throw new PublicError('초기화 확인이 필요해요.');
+        const owner = crypto.randomUUID();
+        const now = Date.now();
+        const acquired = await env.DB.prepare('UPDATE conversation SET lock_owner = ?, lock_until = ? WHERE id = ? AND lock_until < ?')
+          .bind(owner, now + 180000, ID, now).run();
+        if (!acquired.meta.changes) throw new PublicError('상호가 답하는 중이에요. 답장이 끝난 뒤 초기화해 주세요.', 409);
+        const resetToken = crypto.randomUUID();
+        try {
+          await env.DB.batch([
+            env.DB.prepare('DELETE FROM messages'),
+            env.DB.prepare('DELETE FROM memory_revisions'),
+            env.DB.prepare('UPDATE conversation SET memory = ?, memory_through = 0, reset_token = ? WHERE id = ? AND lock_owner = ?').bind('', resetToken, ID, owner)
+          ]);
+          return json({ ok: true, resetToken });
+        } finally {
+          await env.DB.prepare('UPDATE conversation SET lock_owner = NULL, lock_until = 0 WHERE id = ? AND lock_owner = ?').bind(ID, owner).run();
+        }
+      }
       if (url.pathname === '/api/status' && request.method === 'GET') {
         const state = await env.DB.prepare('SELECT memory_through FROM conversation WHERE id = ?').bind(ID).first();
         const count = await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first();
@@ -133,9 +154,13 @@ export default {
         const beforeRaw = url.searchParams.get('before');
         const before = beforeRaw === null ? Number.MAX_SAFE_INTEGER : Number(beforeRaw);
         if (!Number.isSafeInteger(before) || before < 1) throw new PublicError('올바른 대화 위치가 아니에요.');
+        const priorState = await env.DB.prepare('SELECT reset_token FROM conversation WHERE id = ?').bind(ID).first();
         const list = await rows(env.DB.prepare('SELECT * FROM messages WHERE id < ? ORDER BY id DESC LIMIT 61').bind(before));
+        const state = await env.DB.prepare('SELECT reset_token FROM conversation WHERE id = ?').bind(ID).first();
+        // A reset between these reads must never label old messages with a new token.
+        if (priorState.reset_token !== state.reset_token) return json({ messages: [], hasMore: false, resetToken: state.reset_token });
         const more = list.length > 60;
-        return json({ messages: list.slice(0, 60).reverse(), hasMore: more });
+        return json({ messages: list.slice(0, 60).reverse(), hasMore: more, resetToken: state.reset_token });
       }
       if (url.pathname === '/api/export' && request.method === 'GET') {
         // Read in bounded pages, preserving a stable upper boundary for this export.

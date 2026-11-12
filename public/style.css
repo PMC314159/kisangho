@@ -10,3 +10,5 @@
 .app-shell{display:flex;grid-template-columns:none;max-width:1000px}.chat-panel{flex:1}.contact h2{margin:0}
 
 img.mini-avatar{object-fit:cover;object-position:center;flex-shrink:0}
+
+#reset-dialog{width:min(390px,calc(100% - 32px));border:1px solid var(--line);border-radius:16px;padding:28px;background:#fcfbf7;color:var(--ink);box-shadow:0 20px 80px #18201825}#reset-dialog::backdrop{background:#20251d66}#reset-dialog h2{font-size:17px;margin:0 0 16px}#reset-dialog p{font-size:12px;line-height:1.9;color:#777f70}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:24px}.dialog-actions button{padding:10px 16px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font-size:12px}#reset-confirm{background:var(--green);color:white;border-color:var(--green)}.reset-error{color:#a14e39!important}

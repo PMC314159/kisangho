@@ -1,5 +1,5 @@
 const ACTIONS = new Map([
-  ['status', 'GET'], ['history', 'GET'], ['chat', 'POST'], ['export', 'GET']
+  ['status', 'GET'], ['history', 'GET'], ['chat', 'POST'], ['export', 'GET'], ['reset', 'POST']
 ]);
 
 export default async function handler(req, res) {

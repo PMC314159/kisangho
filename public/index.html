@@ -16,7 +16,7 @@
     <main class="chat-panel">
       <header class="chat-header">
         <div class="contact"><img class="mini-avatar" src="/sangho.jpg" alt="기상호 프로필 사진" width="42" height="42"><h2>기상호</h2></div>
-        <div class="header-actions"><button id="refresh" type="button" title="대화 새로 불러오기" aria-label="대화 새로 불러오기">↻</button><button id="export" type="button">기록 보관</button></div>
+        <div class="header-actions"><button id="refresh" type="button" title="대화 새로 불러오기" aria-label="대화 새로 불러오기">↻</button><button id="reset" type="button" title="대화와 기억 전체 초기화">초기화</button><button id="export" type="button">기록 보관</button></div>
       </header>
 
       <section class="conversation" id="conversation" aria-label="기상호와의 대화">
@@ -38,5 +38,11 @@
     </main>
   </div>
   <div id="announcement" class="sr-only" aria-live="polite"></div>
+  <dialog id="reset-dialog" aria-labelledby="reset-title" aria-describedby="reset-description">
+    <h2 id="reset-title">대화와 기억을 초기화할까요?</h2>
+    <p id="reset-description">지금까지의 대화와 장기기억을 모두 지우고<br>영어학원 첫 만남부터 다시 시작해요.<br>삭제한 내용은 되돌릴 수 없어요.</p>
+    <p id="reset-error" class="reset-error" role="alert" hidden></p>
+    <div class="dialog-actions"><button id="reset-cancel" type="button" autofocus>취소</button><button id="reset-confirm" type="button">모두 초기화</button></div>
+  </dialog>
 </body>
 </html>

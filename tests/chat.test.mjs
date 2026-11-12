@@ -1,14 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import worker, { chat } from '../worker/src/index.js';
 import { systemPrompt } from '../worker/src/character.js';
 
 class D1 {
   constructor() {
     this.sqlite = new DatabaseSync(':memory:');
-    this.sqlite.exec(readFileSync(new URL('../worker/migrations/0001_memory.sql', import.meta.url), 'utf8'));
+    const migrations = new URL('../worker/migrations/', import.meta.url);
+    for (const name of readdirSync(migrations).filter(name => name.endsWith('.sql')).sort()) this.sqlite.exec(readFileSync(new URL(name, migrations), 'utf8'));
   }
   prepare(sql) {
     const prepared = this.sqlite.prepare(sql);
@@ -170,4 +171,35 @@ test('character prompt preserves the adult academy setting, gradual speech and K
   assert.match(systemPrompt('chat', ''), /첫 단계로 시작/);
   assert.match(prompt, /예지 누나/); assert.match(prompt, /경상도 사투리/);
   assert.match(prompt, /11월 13일/); assert.match(prompt, /예지는 복숭아를 좋아한다/);
+});
+
+test('reset requires confirmation, removes all conversation memory and preserves usage limits', async () => {
+  const env = setup();
+  await seed(env, 4);
+  await env.DB.prepare('UPDATE conversation SET memory = ?, memory_through = 2').bind('기존 기억').run();
+  await env.DB.prepare('INSERT INTO memory_revisions (through_message, content, created_at) VALUES (?, ?, ?)').bind(2, '기존 기억', Date.now()).run();
+  await env.DB.prepare('INSERT INTO usage_days (day, attempts) VALUES (?, ?)').bind('test-day', 5).run();
+  const reset = body => new Request('https://worker.test/api/reset', { method: 'POST', headers: { Authorization: 'Bearer test-server-secret', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await worker.fetch(reset({}), env)).status, 400);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 4);
+  const result = await worker.fetch(reset({ confirm: 'RESET_ALL' }), env);
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.ok, true);
+  const state = await env.DB.prepare('SELECT * FROM conversation').first();
+  assert.equal(state.memory, ''); assert.equal(state.memory_through, 0); assert.equal(state.lock_until, 0);
+  assert.equal(state.reset_token, data.resetToken);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 0);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM memory_revisions').first()).count, 0);
+  assert.equal((await env.DB.prepare('SELECT attempts FROM usage_days').first()).attempts, 5);
+  const history = await (await worker.fetch(fetchRequest('history'), env)).json();
+  assert.equal(history.resetToken, data.resetToken);
+});
+
+test('reset cannot run during an active reply', async () => {
+  const env = setup(); await seed(env, 2);
+  await env.DB.prepare('UPDATE conversation SET lock_owner = ?, lock_until = ?').bind('active-reply', Date.now() + 60000).run();
+  const result = await worker.fetch(new Request('https://worker.test/api/reset', { method: 'POST', headers: { Authorization: 'Bearer test-server-secret' }, body: JSON.stringify({ confirm: 'RESET_ALL' }) }), env);
+  assert.equal(result.status, 409);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 2);
 });
