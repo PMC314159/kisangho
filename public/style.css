@@ -8,3 +8,5 @@
 .fan-notice{margin-top:auto;padding-top:28px}.composer-footer{justify-content:flex-end}
 
 .app-shell{display:flex;grid-template-columns:none;max-width:1000px}.chat-panel{flex:1}.contact h2{margin:0}
+
+img.mini-avatar{object-fit:cover;object-position:center;flex-shrink:0}
