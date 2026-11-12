@@ -1,5 +1,5 @@
 const $ = selector => document.querySelector(selector);
-const ui = { form: $('#chat-form'), input: $('#message'), send: $('#send'), messages: $('#messages'), conversation: $('#conversation'), typing: $('#typing'), notice: $('#notice'), older: $('#load-older'), status: $('#connection-status') };
+const ui = { form: $('#chat-form'), input: $('#message'), send: $('#send'), messages: $('#messages'), conversation: $('#conversation'), typing: $('#typing'), notice: $('#notice'), older: $('#load-older') };
 const history = new Map();
 let mode = 'chat', busy = false, syncing = false, initial = true;
 let retry = null;
@@ -74,17 +74,14 @@ async function refresh() {
   $('#refresh').disabled = true;
   const atBottom = ui.conversation.scrollHeight - ui.conversation.scrollTop - ui.conversation.clientHeight < 100;
   try {
-    const [data, status] = await Promise.all([api('history'), api('status')]);
+    const data = await api('history');
     for (const message of data.messages) history.set(message.id, message);
     if (initial) ui.older.hidden = !data.hasMore;
     render();
     if (initial || atBottom) bottom();
     initial = false;
-    ui.status.textContent = status.ready ? '연결됨' : 'AI 키 설정 필요';
-    if (!busy) notice(status.ready ? '' : 'Cloudflare Worker에 기존 ANTHROPIC_API_KEY를 설정하면 대화를 시작할 수 있어요.');
   } catch (error) {
-    ui.status.textContent = '서버 연결을 확인해 주세요';
-    notice(error.message);
+    $('#announcement').textContent = '대화 기록을 불러오지 못했어요. 새로고침으로 다시 시도할 수 있어요.';
   } finally { syncing = false; $('#refresh').disabled = false; }
 }
 
@@ -117,7 +114,6 @@ ui.form.addEventListener('submit', async event => {
     for (const item of result.messages) history.set(item.id, item);
     render();
     ui.input.value = ''; retry = null; saveDraft(); resize();
-    ui.status.textContent = '저장됨';
     $('#announcement').textContent = '상호의 답장이 도착했고 대화가 저장됐어요.';
     notice(result.warning || '');
   } catch (error) {
