@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "kisangho-memory",
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "database_id": "00c4213a-97ff-4ce3-9ab1-d8ea8b28fff7",
       "migrations_dir": "migrations"
     }
   ]

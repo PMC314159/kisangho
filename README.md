@@ -40,6 +40,8 @@ npx wrangler login
 
 ## 2. Cloudflare D1 만들기
 
+이 저장소에는 현재 계정에 생성한 `kisangho-memory` DB ID가 연결되어 있습니다. **같은 계정에서 이어서 배포할 때는 DB를 다시 만들지 않고** `npm run db:remote`부터 실행합니다. 아래 생성 명령은 다른 계정으로 새로 설치할 때만 사용합니다.
+
 ```powershell
 npx wrangler d1 create kisangho-memory
 ```
