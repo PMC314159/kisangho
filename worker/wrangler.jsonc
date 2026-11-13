@@ -7,7 +7,7 @@
   "workers_dev": true,
   "vars": {
     "ANTHROPIC_MODEL": "claude-opus-4-6",
-    "MEMORY_MODEL": "claude-opus-4-6",
+    "MEMORY_MODEL": "claude-sonnet-4-6",
     "DAILY_MESSAGE_LIMIT": "200"
   },
   "d1_databases": [

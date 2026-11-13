@@ -77,7 +77,7 @@ npm run cf -- secret put WORKER_SHARED_SECRET --config worker/wrangler.jsonc
 
 이 컴퓨터에서는 기존 계정과 새 계정의 CLI 인증을 분리해 두었습니다. `npm run cf` 및 배포·DB 명령은 Git에서 제외한 `.env.cloudflare.local`을 통해 새 계정의 인증 폴더를 선택합니다. 다른 컴퓨터에는 이 파일을 복사할 필요 없이 새 계정으로 로그인하면 됩니다.
 
-모델은 기존 코드와 같은 `claude-opus-4-6`으로 설정했습니다. 실제 API 계정의 사용 가능 모델에 맞춰 `worker/wrangler.jsonc`의 `ANTHROPIC_MODEL`, `MEMORY_MODEL`을 변경할 수 있습니다. 기억 정리에도 별도 API 비용이 발생합니다.
+답변 모델은 `claude-opus-4-6`, 기억 요약 모델은 `claude-sonnet-4-6`으로 설정했습니다. 요약은 짧은 사실 메모로 정리하며 최대 60초를 기다립니다. 실제 API 계정의 사용 가능 모델에 맞춰 `worker/wrangler.jsonc`의 `ANTHROPIC_MODEL`, `MEMORY_MODEL`을 변경할 수 있습니다. 기억 정리에도 별도 API 비용이 발생합니다.
 
 기존 AI Gateway를 계속 경유하려면 Cloudflare Worker 설정에 `CF_ACCOUNT_ID`, `GATEWAY_ID`를 추가합니다. 둘 다 없으면 Anthropic API에 직접 연결합니다. Gateway가 별도 인증을 요구하는 구성이라면 해당 인증 처리를 추가해야 합니다.
 

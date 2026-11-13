@@ -43,7 +43,7 @@ function setBusy(value) {
   document.querySelectorAll('[data-mode]').forEach(button => { button.disabled = value; });
 }
 async function api(action, options = {}) {
-  const response = await fetch(`/api/${action}`, { ...options, cache: 'no-store', signal: AbortSignal.timeout(115000) });
+  const response = await fetch(`/api/${action}`, { ...options, cache: 'no-store', signal: AbortSignal.timeout(155000) });
   let data;
   try { data = await response.json(); } catch { throw new Error('서버 응답을 읽지 못했어요. 잠시 뒤 다시 시도해 주세요.'); }
   if (!response.ok) throw new Error(data.error || '요청을 완료하지 못했어요.');

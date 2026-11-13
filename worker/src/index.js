@@ -20,7 +20,7 @@ export async function callClaude(env, messages, system, maxTokens, fetcher = fet
   const response = await fetcher(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey(env), 'anthropic-version': '2023-06-01' },
-    signal: AbortSignal.timeout(memory ? 35000 : 65000),
+    signal: AbortSignal.timeout(memory ? 60000 : 65000),
     body: JSON.stringify({
       model: (memory && env.MEMORY_MODEL) || env.ANTHROPIC_MODEL || 'claude-opus-4-6',
       max_tokens: maxTokens,
@@ -42,7 +42,7 @@ export async function callClaude(env, messages, system, maxTokens, fetcher = fet
   return text;
 }
 
-async function updateMemory(db, env, state, fetcher) {
+export async function updateMemory(db, env, state, fetcher = fetch) {
   const unsummarized = await rows(db.prepare('SELECT id, role, content, created_at FROM messages WHERE id > ? ORDER BY id').bind(state.memory_through));
   if (unsummarized.length <= 32) return { state, warning: null };
   // Keep the latest 24 messages verbatim; summarize at most 40 per call.
@@ -56,7 +56,8 @@ async function updateMemory(db, env, state, fetcher) {
       db.prepare('INSERT INTO memory_revisions (through_message, content, created_at) VALUES (?, ?, ?)').bind(through, memory, Date.now())
     ]);
     return { state: { ...state, memory, memory_through: through }, warning: null };
-  } catch {
+  } catch (error) {
+    console.warn('Memory compaction failed:', error.name);
     // Cursor does not advance on failure; original messages are still available.
     if (unsummarized.length > 120) throw new PublicError('장기기억 정리를 완료하지 못했어요. 기록은 보관되어 있으니 잠시 뒤 다시 시도해 주세요.', 503);
     return { state, warning: '이번 기억 정리는 다음 대화에서 다시 시도해요. 원문은 모두 저장되어 있어요.' };
@@ -88,7 +89,7 @@ export async function chat(request, env, fetcher = fetch) {
   const owner = crypto.randomUUID();
   const now = Date.now();
   const acquired = await db.prepare('UPDATE conversation SET lock_owner = ?, lock_until = ? WHERE id = ? AND lock_until < ?')
-    .bind(owner, now + 180000, ID, now).run();
+    .bind(owner, now + 240000, ID, now).run();
   if (!acquired.meta.changes) throw new PublicError('상호가 앞선 메시지에 답하는 중이에요. 잠시 뒤 다시 보내 주세요.', 409);
   try {
     const duplicate = await completed();

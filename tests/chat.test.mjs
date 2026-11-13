@@ -135,6 +135,22 @@ test('failed summary preserves its cursor and sends all unarchived messages, wit
   assert.ok((await result.json()).warning);
 });
 
+test('a backlog above 120 messages can recover without deleting conversation history', async () => {
+  const env = setup(); await seed(env, 122);
+  let context;
+  await chat(request('계속 이야기하자.'), env, async (_url, options) => {
+    const body = JSON.parse(options.body);
+    if (body.max_tokens === 4000) return response('앞선 대화에서 확인한 중요한 약속과 취향.');
+    context = body.messages;
+    return response('응, 아까 하던 얘기 이어가요.');
+  });
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 124);
+  const state = await env.DB.prepare('SELECT * FROM conversation').first();
+  assert.equal(state.memory_through, 40);
+  assert.equal(context[0].content, '과거 대화 41');
+  assert.equal(context.length, 83);
+});
+
 test('history paginates without gaps and backup exports every stored message', async () => {
   const env = setup(); await seed(env, 132);
   const first = await (await worker.fetch(fetchRequest('history'), env)).json();

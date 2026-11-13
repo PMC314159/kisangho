@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       method: req.method,
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body,
-      signal: AbortSignal.timeout(110000),
+      signal: AbortSignal.timeout(150000),
       redirect: 'error'
     });
     res.setHeader('Content-Type', upstream.headers.get('Content-Type') || 'application/json; charset=utf-8');

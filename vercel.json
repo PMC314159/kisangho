@@ -4,7 +4,7 @@
   "buildCommand": "",
   "outputDirectory": "public",
   "functions": {
-    "api/[action].js": { "maxDuration": 120 }
+    "api/[action].js": { "maxDuration": 180 }
   },
   "headers": [
     { "source": "/(.*)", "headers": [
