@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-11-12",
   "workers_dev": true,
+  "triggers": { "crons": ["*/2 * * * *"] },
   "vars": {
     "ANTHROPIC_MODEL": "claude-opus-4-6",
     "MEMORY_MODEL": "claude-sonnet-4-6",

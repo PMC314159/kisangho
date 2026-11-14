@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
-import worker, { chat } from '../worker/src/index.js';
+import worker, { chat, updateMemory, maintainMemory } from '../worker/src/index.js';
 import { systemPrompt } from '../worker/src/character.js';
 
 class D1 {
@@ -107,10 +107,11 @@ test('two devices cannot generate replies concurrently against the same memory',
 
 test('long-term memory advances only after a successful summary and never deletes originals', async () => {
   const env = setup(); await seed(env, 34);
+  const prior = await env.DB.prepare('SELECT * FROM conversation').first();
+  await updateMemory(env.DB, env, prior, async () => response('예지는 복숭아를 좋아한다.'));
   let outgoing;
   await chat(request('오늘은 딸기도 좋아.'), env, async (_url, options) => {
     const body = JSON.parse(options.body);
-    if (body.max_tokens === 4000) return response('예지는 복숭아를 좋아한다.');
     outgoing = body; return response('그것도 기억할게요.');
   });
   const state = await env.DB.prepare('SELECT * FROM conversation').first();
@@ -124,31 +125,91 @@ test('long-term memory advances only after a successful summary and never delete
 
 test('failed summary preserves its cursor and sends all unarchived messages, without a context gap', async () => {
   const env = setup(); await seed(env, 36);
+  const prior = await env.DB.prepare('SELECT * FROM conversation').first();
+  const maintenance = await updateMemory(env.DB, env, prior, async () => { throw new Error('summary unavailable'); });
   let outgoing;
   const result = await chat(request('기억하고 있어?'), env, async (_url, options) => {
     const body = JSON.parse(options.body);
-    if (body.max_tokens === 4000) throw new Error('summary unavailable');
     outgoing = body; return response('누나랑 한 얘기 보고 있었어요.');
   });
   assert.equal((await env.DB.prepare('SELECT memory_through FROM conversation').first()).memory_through, 0);
   assert.equal(outgoing.messages.length, 37);
-  assert.ok((await result.json()).warning);
+  assert.ok(maintenance.warning);
+  assert.equal((await result.json()).warning, undefined);
 });
 
-test('a backlog above 120 messages can recover without deleting conversation history', async () => {
+test('a backlog above 120 messages never invokes summarization or blocks a reply', async () => {
   const env = setup(); await seed(env, 122);
   let context;
   await chat(request('계속 이야기하자.'), env, async (_url, options) => {
     const body = JSON.parse(options.body);
-    if (body.max_tokens === 4000) return response('앞선 대화에서 확인한 중요한 약속과 취향.');
+    assert.notEqual(body.max_tokens, 4000);
     context = body.messages;
     return response('응, 아까 하던 얘기 이어가요.');
   });
   assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 124);
   const state = await env.DB.prepare('SELECT * FROM conversation').first();
-  assert.equal(state.memory_through, 40);
-  assert.equal(context[0].content, '과거 대화 41');
-  assert.equal(context.length, 83);
+  assert.equal(state.memory_through, 0);
+  assert.equal(context[0].content, '과거 대화 1');
+  assert.equal(context.length, 123);
+});
+
+test('background failures schedule retries without advancing the memory cursor', async () => {
+  const env = setup(); await seed(env, 60);
+  const failed = await maintainMemory(env, async () => { throw new Error('timeout'); });
+  assert.equal(failed.status, 'retry-scheduled');
+  const state = await env.DB.prepare('SELECT * FROM conversation').first();
+  assert.equal(state.memory_through, 0);
+  assert.equal(state.memory_failures, 1);
+  assert.ok(state.memory_next_attempt > Date.now());
+  assert.equal(state.memory_lock_until, 0);
+  const skipped = await maintainMemory(env, async () => { throw new Error('must not call during backoff'); });
+  assert.equal(skipped.status, 'busy-or-backoff');
+  await env.DB.prepare('UPDATE conversation SET memory_next_attempt = 0').run();
+  const recovered = await maintainMemory(env, async () => response('확인된 약속과 취향.'));
+  assert.ok(recovered.processed > 0);
+  const final = await env.DB.prepare('SELECT * FROM conversation').first();
+  assert.equal(final.memory_failures, 0);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 60);
+});
+
+test('a slow background summary does not hold the chat lock or block replies', async () => {
+  const env = setup(); await seed(env, 40);
+  let release, began;
+  const started = new Promise(resolve => { began = resolve; });
+  const background = maintainMemory(env, async () => { began(); return new Promise(resolve => { release = () => resolve(response('중요한 기억.')); }); });
+  await started;
+  const skipped = await maintainMemory(env, async () => { throw new Error('duplicate summary'); });
+  assert.equal(skipped.status, 'busy-or-backoff');
+  const answer = await chat(request('답장해 줘.'), env, async () => response('응, 듣고 있어요.'));
+  assert.equal(answer.status, 200);
+  release(); await background;
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 42);
+});
+
+test('reset during summarization cannot resurrect old memory or archive revisions', async () => {
+  const env = setup(); await seed(env, 40);
+  let release, began;
+  const started = new Promise(resolve => { began = resolve; });
+  const background = maintainMemory(env, async () => { began(); return new Promise(resolve => { release = () => resolve(response('삭제 전 기억.')); }); });
+  await started;
+  const reset = await worker.fetch(new Request('https://worker.test/api/reset', { method: 'POST', headers: { Authorization: 'Bearer test-server-secret' }, body: JSON.stringify({ confirm: 'RESET_ALL' }) }), env);
+  assert.equal(reset.status, 200);
+  release(); await background;
+  const state = await env.DB.prepare('SELECT * FROM conversation').first();
+  assert.equal(state.memory, ''); assert.equal(state.memory_through, 0);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM memory_revisions').first()).count, 0);
+});
+
+test('large backlogs use bounded context and retrieve relevant original records', async () => {
+  const env = setup(); await seed(env, 240);
+  await env.DB.prepare('UPDATE messages SET content = ?').bind('긴 대화 내용. '.repeat(100)).run();
+  await env.DB.prepare('UPDATE messages SET content = ? WHERE id = 61').bind('딸기 케이크를 토요일에 같이 먹기로 약속했어.').run();
+  let outgoing;
+  await chat(request('딸기 약속 기억해?'), env, async (_url, options) => { outgoing = JSON.parse(options.body); return response('토요일에 같이 먹기로 했잖아요.'); });
+  assert.ok(outgoing.messages.length <= 25);
+  assert.match(outgoing.system[0].text, /딸기 케이크를 토요일/);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS count FROM messages').first()).count, 242);
 });
 
 test('history paginates without gaps and backup exports every stored message', async () => {
